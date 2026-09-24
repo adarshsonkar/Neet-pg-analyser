@@ -1,0 +1,422 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>NEET-PG 2026 Rank & Score Analyzer</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.js"></script>
+<style>
+:root{box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);}
+html{scroll-padding-top:env(safe-area-inset-top,0px);}
+.gradient-bg{background:linear-gradient(135deg,#0f172a 0%,#1e1b4b 50%,#311042 100%);}
+.glass-card{background:rgba(255,255,255,0.95);backdrop-filter:blur(10px);border:1px solid rgba(229,231,235,0.5);}
+</style>
+</head>
+<body class="bg-slate-900 text-slate-800 font-sans min-h-screen">
+
+<header class="gradient-bg text-white py-8 px-6 shadow-xl relative overflow-hidden">
+  <div class="max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-center gap-4 relative z-10">
+    <div>
+      <span class="bg-indigo-500/30 text-indigo-200 text-xs font-semibold px-3 py-1 rounded-full border border-indigo-400/30">Built from the Official NBEMS Result PDF</span>
+      <h1 class="text-3xl md:text-4xl font-extrabold mt-2 tracking-tight">NEET-PG 2026 Rank & Result Analyzer</h1>
+      <p class="text-slate-300 text-sm mt-1">Score ⇄ Rank predictor, sampled from all 2,65,959 ranked candidates</p>
+    </div>
+    <div class="flex gap-3 text-center">
+      <div class="bg-white/10 rounded-xl p-3 px-4 backdrop-blur-md">
+        <p class="text-xs text-slate-300 uppercase tracking-wider font-semibold">Max Score</p>
+        <p class="text-2xl font-bold text-emerald-400">720</p>
+      </div>
+      <div class="bg-white/10 rounded-xl p-3 px-4 backdrop-blur-md">
+        <p class="text-xs text-slate-300 uppercase tracking-wider font-semibold">Ranked Candidates</p>
+        <p class="text-2xl font-bold text-indigo-300" id="headerCandidates">265,959</p>
+      </div>
+    </div>
+  </div>
+</header>
+
+<main class="max-w-7xl mx-auto p-4 md:p-6 space-y-6 -mt-4">
+
+  <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+
+    <div class="lg:col-span-5 glass-card rounded-2xl p-6 shadow-lg border border-slate-200 flex flex-col justify-between">
+      <div>
+        <h2 class="text-xl font-bold text-slate-900 flex items-center gap-2 mb-4"><span>🧮</span> Score & Rank Lookup</h2>
+
+        <div id="dropZone" class="border-2 border-dashed border-indigo-300 hover:border-indigo-500 bg-indigo-50/50 hover:bg-indigo-50 transition-all rounded-xl p-4 text-center cursor-pointer mb-5">
+          <div class="text-2xl mb-1">📤</div>
+          <p class="text-sm font-semibold text-slate-700">Drag & drop a text/CSV file with your score</p>
+          <p class="text-xs text-slate-500 mt-1">or click to browse — looks for a number 0–720 in the file</p>
+          <input type="file" id="fileInput" class="hidden" accept=".txt,.csv,.json">
+        </div>
+
+        <div class="space-y-4">
+          <div>
+            <div class="flex justify-between items-center mb-1">
+              <label for="scoreInput" class="text-sm font-semibold text-slate-700">NEET-PG Score (out of 720):</label>
+              <span id="scoreBadge" class="bg-indigo-100 text-indigo-800 text-xs font-bold px-2.5 py-0.5 rounded">350 Marks</span>
+            </div>
+            <input type="number" id="scoreInput" min="-100" max="720" value="350" class="w-full px-4 py-2.5 border border-slate-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 font-bold text-lg text-slate-800">
+          </div>
+
+          <div>
+            <input type="range" id="scoreSlider" min="-100" max="720" value="350" class="w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-indigo-600">
+            <div class="flex justify-between text-xs text-slate-400 mt-1">
+              <span>-100</span><span>310</span><span>720</span>
+            </div>
+          </div>
+
+          <div class="pt-3 border-t border-slate-100">
+            <label for="rankInput" class="text-xs font-semibold text-slate-500">🎯 Or jump to a target rank:</label>
+            <input type="number" id="rankInput" min="1" max="265960" placeholder="e.g. 50000" class="w-full mt-1 px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500">
+          </div>
+        </div>
+      </div>
+
+      <div class="mt-6 pt-5 border-t border-slate-200">
+        <div class="grid grid-cols-2 gap-3">
+          <div class="bg-indigo-900 text-white p-4 rounded-xl shadow-md text-center">
+            <p class="text-xs uppercase tracking-wide text-indigo-200">Estimated All India Rank</p>
+            <p id="rankOutput" class="text-2xl font-black mt-1 text-emerald-300">78,368</p>
+          </div>
+          <div class="bg-slate-100 p-4 rounded-xl text-center border border-slate-200">
+            <p class="text-xs uppercase tracking-wide text-slate-500">Estimated Percentile</p>
+            <p id="percentileOutput" class="text-2xl font-bold mt-1 text-slate-800">70.54%</p>
+          </div>
+        </div>
+        <p id="compareStat" class="text-center text-[11px] text-slate-500 mt-2"></p>
+      </div>
+    </div>
+
+    <div class="lg:col-span-7 glass-card rounded-2xl p-6 shadow-lg border border-slate-200 flex flex-col justify-between">
+      <div>
+        <div class="flex justify-between items-center mb-3">
+          <h2 class="text-xl font-bold text-slate-900 flex items-center gap-2"><span>🩺</span> Specialty Eligibility Predictor</h2>
+          <span class="text-xs text-slate-500">AIQ / DNB Benchmark</span>
+        </div>
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-4" id="specialtyContainer"></div>
+      </div>
+      <div class="mt-4 p-3 bg-amber-50 rounded-xl border border-amber-200 text-xs text-amber-800 flex items-start gap-2">
+        <span>ℹ️</span>
+        <span>These rank thresholds are illustrative estimates based on historical AIQ trends for the General category — not official 2026 figures. NBEMS publishes category/quota/round-wise cut-offs separately once counselling begins.</span>
+      </div>
+    </div>
+
+  </div>
+
+  <div class="glass-card rounded-2xl p-6 shadow-lg border border-slate-200">
+    <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 mb-4">
+      <div>
+        <h2 class="text-xl font-bold text-slate-900 flex items-center gap-2"><span>📈</span> NEET-PG 2026 Marks vs Rank Distribution</h2>
+        <p class="text-xs text-slate-500">Evenly sampled across all 2,65,959 ranked candidates in the published result</p>
+      </div>
+      <div class="flex items-center gap-4 text-xs font-medium">
+        <span class="flex items-center gap-1.5"><span class="w-3 h-3 bg-indigo-600 rounded-full inline-block"></span> Rank Curve</span>
+        <span class="flex items-center gap-1.5"><span class="w-3.5 h-3.5 bg-emerald-500 border-2 border-white rounded-full inline-block shadow"></span> Your Score</span>
+      </div>
+    </div>
+    <div class="relative w-full" style="height: 360px;">
+      <canvas id="marksRankChart"></canvas>
+    </div>
+  </div>
+
+  <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+
+    <div class="lg:col-span-8 glass-card rounded-2xl p-6 shadow-lg border border-slate-200">
+      <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 mb-4">
+        <h2 class="text-xl font-bold text-slate-900 flex items-center gap-2"><span>📋</span> Reference Result Dataset</h2>
+        <input type="text" id="tableSearch" placeholder="Search by Score or Rank..." class="px-3 py-1.5 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 w-full sm:w-64">
+      </div>
+      <div class="overflow-x-auto max-h-[320px]">
+        <table class="w-full text-sm text-left text-slate-600">
+          <thead class="text-xs text-slate-700 uppercase bg-slate-100 sticky top-0">
+            <tr>
+              <th class="px-4 py-3">Total Score (720)</th>
+              <th class="px-4 py-3">NEET-PG Rank</th>
+              <th class="px-4 py-3">Percentile</th>
+              <th class="px-4 py-3">Category</th>
+            </tr>
+          </thead>
+          <tbody id="dataTableBody"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="lg:col-span-4 glass-card rounded-2xl p-6 shadow-lg border border-slate-200 flex flex-col justify-between">
+      <div>
+        <h2 class="text-xl font-bold text-slate-900 flex items-center gap-2 mb-3"><span>🎯</span> Percentile Benchmarks</h2>
+        <p class="text-xs text-slate-600 mb-3">🏆 Topper this year: <strong>641/720</strong> (Rank 1)</p>
+        <table class="w-full text-[11px]">
+          <thead>
+            <tr class="text-slate-400"><th class="text-left font-semibold pb-1">Top</th><th class="text-left font-semibold pb-1">Rank ≤</th><th class="text-left font-semibold pb-1">Score ≈</th></tr>
+          </thead>
+          <tbody id="milestoneBody" class="text-slate-700"></tbody>
+        </table>
+        <p class="text-[10px] text-slate-400 mt-2">Score needed to place at or above each percentile, from the actual result distribution.</p>
+      </div>
+      <div class="mt-4 pt-3 border-t border-slate-200 text-center">
+        <button onclick="window.print()" class="w-full py-2 bg-slate-800 hover:bg-slate-900 text-white text-xs font-bold rounded-xl transition">🖨️ Print / Save Summary</button>
+      </div>
+    </div>
+
+  </div>
+
+</main>
+
+<script>
+const TOTAL_CANDIDATES = 265959;
+// [score, rank] pairs, evenly sampled by rank across all 265,959 ranked candidates
+// from the official NBEMS NEET-PG 2026 published result (sorted by score, descending).
+const rawData=[[641,1],[551,2441],[533,4881],[520,7321],[508,9761],[499,12201],[491,14641],[483,17081],[476,19521],[469,21961],[462,24401],[455,26841],[449,29281],[443,31721],[437,34161],[432,36601],[426,39041],[421,41481],[416,43921],[410,46361],[405,48801],[400,51241],[396,53681],[391,56121],[386,58561],[381,61001],[376,63441],[372,65881],[367,68320],[363,70760],[359,73200],[354,75640],[350,78080],[345,80520],[341,82960],[337,85400],[333,87840],[329,90280],[325,92720],[320,95160],[317,97600],[313,100040],[309,102480],[305,104920],[301,107360],[297,109800],[293,112240],[289,114680],[285,117120],[282,119560],[278,122000],[275,124441],[271,126881],[268,129321],[264,131761],[261,134201],[257,136641],[254,139081],[250,141521],[247,143961],[244,146401],[240,148841],[237,151281],[234,153721],[231,156161],[227,158601],[224,161041],[221,163481],[218,165921],[215,168361],[211,170801],[208,173241],[205,175681],[202,178121],[199,180561],[195,183001],[192,185441],[189,187881],[186,190321],[183,192761],[180,195201],[176,197641],[173,200080],[170,202520],[166,204960],[163,207400],[160,209840],[156,212280],[153,214720],[150,217160],[146,219600],[142,222040],[139,224480],[135,226920],[131,229360],[127,231800],[123,234240],[119,236680],[115,239120],[110,241560],[105,244000],[100,246440],[94,248880],[88,251320],[81,253760],[73,256200],[64,258640],[52,261080],[37,263520],[-59,265960]];
+
+const specialties = [
+  {name:"Radio-Diagnosis / Derm", cutoff:3500, icon:"🩻"},
+  {name:"General Medicine", cutoff:8000, icon:"💊"},
+  {name:"Pediatrics / OBGYN", cutoff:14000, icon:"👶"},
+  {name:"General Surgery / Ortho", cutoff:22000, icon:"🦴"},
+  {name:"Anesthesia / ENT / Ophthal", cutoff:38000, icon:"👁️"},
+  {name:"Pathology / Microbiology", cutoff:75000, icon:"🧪"}
+];
+
+// Real percentile milestones computed from the full ranked list
+const MILESTONES = [
+  {p:0.1, rank:266, score:590},
+  {p:1, rank:2660, score:549},
+  {p:5, rank:13298, score:495},
+  {p:10, rank:26596, score:456},
+  {p:25, rank:66490, score:371},
+  {p:50, rank:132980, score:262}
+];
+
+function getEstimatedRank(score){
+  if (score >= rawData[0][0]) {
+    const ratio = Math.max(0, (720 - score) / (720 - rawData[0][0]));
+    return Math.max(1, Math.round(rawData[0][1] * ratio));
+  }
+  const last = rawData[rawData.length - 1];
+  if (score <= last[0]) return last[1];
+  for (let i = 0; i < rawData.length - 1; i++) {
+    const high = rawData[i], low = rawData[i + 1];
+    if (score <= high[0] && score >= low[0]) {
+      const factor = (high[0] - score) / (high[0] - low[0]);
+      return Math.round(high[1] + factor * (low[1] - high[1]));
+    }
+  }
+  return last[1];
+}
+
+function getEstimatedScoreForRank(rank){
+  const last = rawData[rawData.length - 1];
+  rank = Math.max(1, Math.min(last[1], Math.round(rank)));
+  const first = rawData[0];
+  if (rank <= first[1]) return first[0];
+  if (rank >= last[1]) return last[0];
+  for (let i = 0; i < rawData.length - 1; i++) {
+    const high = rawData[i], low = rawData[i + 1];
+    if (rank >= high[1] && rank <= low[1]) {
+      const factor = (rank - high[1]) / (low[1] - high[1]);
+      return Math.round(high[0] + factor * (low[0] - high[0]));
+    }
+  }
+  return last[0];
+}
+
+let chartInstance = null;
+
+function initChart(){
+  if (typeof Chart === 'undefined') throw new Error('Chart.js failed to load');
+  const canvas = document.getElementById('marksRankChart');
+  if (!canvas) return;
+  const ctx = canvas.getContext('2d');
+  const chartData = rawData.slice().reverse().map(d => ({x: d[0], y: d[1]}));
+
+  chartInstance = new Chart(ctx, {
+    type: 'scatter',
+    data: {
+      datasets: [
+        {
+          label: 'Rank Curve', data: chartData, showLine: true,
+          borderColor: '#4f46e5', backgroundColor: 'rgba(79, 70, 229, 0.12)',
+          fill: true, tension: 0.25, borderWidth: 3, pointRadius: 2, pointHoverRadius: 6
+        },
+        {
+          label: 'Your Current Score', data: [{x: 350, y: getEstimatedRank(350)}],
+          borderColor: '#ffffff', backgroundColor: '#10b981', borderWidth: 2,
+          pointRadius: 9, pointHoverRadius: 11
+        }
+      ]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false, animation: false,
+      scales: {
+        x: { type: 'linear', title: {display: true, text: 'NEET-PG Score (out of 720)', font: {weight: 'bold', size: 12}}, min: -100, max: 720, grid: {color: 'rgba(226, 232, 240, 0.6)'} },
+        y: { reverse: true, title: {display: true, text: 'NEET-PG All India Rank', font: {weight: 'bold', size: 12}}, ticks: {callback: v => Number(v).toLocaleString('en-IN')}, grid: {color: 'rgba(226, 232, 240, 0.6)'} }
+      },
+      plugins: {
+        legend: {display: false},
+        tooltip: {callbacks: {label: c => `Score: ${c.raw.x} Marks | Rank: ${Number(c.raw.y).toLocaleString('en-IN')}`}}
+      }
+    }
+  });
+}
+
+function updateAll(score, sourceElement = null){
+  if (isNaN(score)) score = 0;
+  score = Math.min(720, Math.max(-100, score));
+
+  const rank = getEstimatedRank(score);
+  const percentile = Math.max(0, ((TOTAL_CANDIDATES - rank) / TOTAL_CANDIDATES) * 100).toFixed(2);
+
+  document.getElementById('scoreBadge').innerText = `${score} Marks`;
+  document.getElementById('rankOutput').innerText = rank.toLocaleString('en-IN');
+  document.getElementById('percentileOutput').innerText = `${percentile}%`;
+  document.getElementById('compareStat').innerText =
+    `${(rank - 1).toLocaleString('en-IN')} ranked above you · ${Math.max(0, TOTAL_CANDIDATES - rank).toLocaleString('en-IN')} ranked below`;
+
+  const scoreInput = document.getElementById('scoreInput');
+  const scoreSlider = document.getElementById('scoreSlider');
+  if (sourceElement !== scoreInput) scoreInput.value = score;
+  if (sourceElement !== scoreSlider) scoreSlider.value = score;
+
+  if (chartInstance) {
+    chartInstance.data.datasets[1].data = [{x: score, y: rank}];
+    chartInstance.update('none');
+  }
+
+  renderSpecialties(rank);
+}
+
+function renderSpecialties(rank){
+  const container = document.getElementById('specialtyContainer');
+  container.innerHTML = '';
+
+  specialties.forEach(spec => {
+    let statusClass = "bg-emerald-50 border-emerald-200 text-emerald-800", statusText = "High Chance", statusIcon = "✅";
+    if (rank > spec.cutoff * 1.5) { statusClass = "bg-rose-50 border-rose-200 text-rose-800"; statusText = "Low / Private"; statusIcon = "❌"; }
+    else if (rank > spec.cutoff) { statusClass = "bg-amber-50 border-amber-200 text-amber-800"; statusText = "Borderline / DNB"; statusIcon = "⚠️"; }
+
+    const card = document.createElement('div');
+    card.className = `p-3 rounded-xl border flex items-center justify-between ${statusClass}`;
+    card.innerHTML = `
+      <div class="flex items-center gap-2.5">
+        <span class="text-lg opacity-80">${spec.icon}</span>
+        <div>
+          <p class="font-bold text-xs">${spec.name}</p>
+          <p class="text-[10px] opacity-75">AIQ Threshold: ~${spec.cutoff.toLocaleString('en-IN')} Rank</p>
+        </div>
+      </div>
+      <span class="text-[11px] font-bold flex items-center gap-1 whitespace-nowrap">${statusIcon} ${statusText}</span>
+    `;
+    container.appendChild(card);
+  });
+}
+
+function renderTable(filterText = ''){
+  const tbody = document.getElementById('dataTableBody');
+  tbody.innerHTML = '';
+
+  const filtered = rawData.filter(d => d[0].toString().includes(filterText) || d[1].toString().includes(filterText));
+
+  filtered.forEach(d => {
+    const [score, rank] = d;
+    const percentile = (((TOTAL_CANDIDATES - rank) / TOTAL_CANDIDATES) * 100).toFixed(2);
+    let catBadge = `<span class="bg-slate-200 text-slate-700 px-2 py-0.5 rounded text-[11px]">Pass</span>`;
+    if (score >= 500) catBadge = `<span class="bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded text-[11px] font-bold">Top Tier</span>`;
+    else if (score >= 350) catBadge = `<span class="bg-indigo-100 text-indigo-800 px-2 py-0.5 rounded text-[11px]">Good</span>`;
+    else if (score < 150) catBadge = `<span class="bg-rose-100 text-rose-800 px-2 py-0.5 rounded text-[11px]">Low</span>`;
+
+    const tr = document.createElement('tr');
+    tr.className = "border-b border-slate-200 hover:bg-slate-50";
+    tr.innerHTML = `
+      <td class="px-4 py-2.5 font-bold text-slate-900">${score}</td>
+      <td class="px-4 py-2.5">${rank.toLocaleString('en-IN')}</td>
+      <td class="px-4 py-2.5">${percentile}%</td>
+      <td class="px-4 py-2.5">${catBadge}</td>
+    `;
+    tbody.appendChild(tr);
+  });
+}
+
+function renderMilestones(){
+  const tbody = document.getElementById('milestoneBody');
+  tbody.innerHTML = MILESTONES.map(m => `
+    <tr class="border-t border-slate-100">
+      <td class="py-1">${m.p}%</td>
+      <td class="py-1">${m.rank.toLocaleString('en-IN')}</td>
+      <td class="py-1 font-semibold">${m.score}</td>
+    </tr>
+  `).join('');
+}
+
+const dropZone = document.getElementById('dropZone');
+const fileInput = document.getElementById('fileInput');
+
+dropZone.addEventListener('click', () => fileInput.click());
+dropZone.addEventListener('dragover', (e) => { e.preventDefault(); dropZone.classList.add('border-indigo-600', 'bg-indigo-100/50'); });
+dropZone.addEventListener('dragleave', () => dropZone.classList.remove('border-indigo-600', 'bg-indigo-100/50'));
+dropZone.addEventListener('drop', (e) => {
+  e.preventDefault();
+  dropZone.classList.remove('border-indigo-600', 'bg-indigo-100/50');
+  if (e.dataTransfer.files.length > 0) handleFile(e.dataTransfer.files[0]);
+});
+fileInput.addEventListener('change', (e) => { if (e.target.files.length > 0) handleFile(e.target.files[0]); });
+
+function handleFile(file){
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    const text = e.target.result;
+    const matches = text.match(/\b([0-6]?[0-9]{1,2}|7[0-1][0-9]|720)\b/g);
+    if (matches && matches.length > 0) {
+      const extractedScore = parseInt(matches[0]);
+      updateAll(extractedScore);
+      alert(`Extracted Score from File: ${extractedScore}`);
+    } else {
+      alert("Could not find a valid NEET-PG score (0-720) in that file.");
+    }
+  };
+  reader.readAsText(file);
+}
+
+window.onload = () => {
+  document.getElementById('headerCandidates').textContent = TOTAL_CANDIDATES.toLocaleString('en-IN');
+
+  try {
+    initChart();
+  } catch (err) {
+    console.error('Chart failed to load:', err);
+    const canvas = document.getElementById('marksRankChart');
+    if (canvas && canvas.parentElement) {
+      canvas.parentElement.innerHTML = '<div class="h-full flex items-center justify-center text-sm text-slate-400 text-center px-6">Chart could not load (network issue) — the full data is still available in the table below.</div>';
+    }
+  }
+
+  renderTable();
+  renderMilestones();
+
+  const scoreInput = document.getElementById('scoreInput');
+  const scoreSlider = document.getElementById('scoreSlider');
+  const rankInput = document.getElementById('rankInput');
+
+  ['input', 'change'].forEach(eventType => {
+    scoreInput.addEventListener(eventType, (e) => {
+      const val = parseInt(e.target.value);
+      updateAll(isNaN(val) ? 0 : val, scoreInput);
+    });
+    scoreSlider.addEventListener(eventType, (e) => {
+      const val = parseInt(e.target.value);
+      updateAll(isNaN(val) ? 0 : val, scoreSlider);
+    });
+  });
+
+  rankInput.addEventListener('input', (e) => {
+    const r = parseInt(e.target.value);
+    if (!isNaN(r) && r > 0) updateAll(getEstimatedScoreForRank(r));
+  });
+
+  document.getElementById('tableSearch').addEventListener('input', (e) => renderTable(e.target.value));
+
+  updateAll(350);
+};
+</script>
+</body>
+</html>
